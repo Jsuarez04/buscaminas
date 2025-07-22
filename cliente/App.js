@@ -1,108 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Modal,
+  TextInput,
+} from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 
-const filas = 8;
-const columnas = 8;
-const cantidadMinas = 10;
-
-// Crea un tablero vacío con minas aleatorias
-function generarTablero() {
-  const tablero = Array(filas)
-    .fill(null)
-    .map(() =>
-      Array(columnas).fill({
-        mina: false,
-        descubierta: false,
-        minasAlrededor: 0,
-      })
-    );
-
-  // Clonamos el tablero para modificarlo sin referencia
-  const nuevoTablero = tablero.map(fila => fila.map(celda => ({ ...celda })));
-
-  // Agregar minas aleatorias
-  let minasColocadas = 0;
-  while (minasColocadas < cantidadMinas) {
-    const i = Math.floor(Math.random() * filas);
-    const j = Math.floor(Math.random() * columnas);
-    if (!nuevoTablero[i][j].mina) {
-      nuevoTablero[i][j].mina = true;
-      minasColocadas++;
-    }
-  }
-
-  // Calcular minas alrededor
-  for (let i = 0; i < filas; i++) {
-    for (let j = 0; j < columnas; j++) {
-      if (nuevoTablero[i][j].mina) continue;
-      let total = 0;
-      for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-          const ni = i + x;
-          const nj = j + y;
-          if (
-            ni >= 0 &&
-            ni < filas &&
-            nj >= 0 &&
-            nj < columnas &&
-            nuevoTablero[ni][nj].mina
-          ) {
-            total++;
-          }
-        }
-      }
-      nuevoTablero[i][j].minasAlrededor = total;
-    }
-  }
-
-  return nuevoTablero;
-}
+//const filas = 8;
+//const columnas = 8;
 
 export default function App() {
-  const [tablero, setTablero] = useState([]);
+  const [tablero, setTablero] = useState([]); // Representación del tablero
+  const [contador, setContador] = useState(0); // Contador de movimientos
+  const socketRef = useRef(null); // Referencia persistente al socket
+  const [frasePerdedor, setFrasePerdedor] = useState(''); // Mensaje cuando alguien pierde
+  const [columnas, setColumnas] = useState(''); // Columnas personalizadas
+  const [filas, setFilas] = useState(''); // Filas personalizadas
+  const contadorRef = useRef(contador); // Ref al contador para evitar problemas de asincronía
+  const [bandera, setBandera] = useState(false); // Modo bandera ON/OFF
+  const [jugador, setJugador] = useState(''); // ID del jugador
+  const [jugadores, setJugadores] = useState([]); // Lista de jugadores con puntajes
+  const [modalVisible, setModalVisible] = useState(false); // Modal de puntajes
+  const [nivelVisible, setNivelVisible] = useState(true); // Modal de selección de dificultad
+  const [tabPersonalizado, setTabPersonalizado] = useState(false); // Modal para tablero personalizado
+  const [estadoBandera, setEstadoBandera] = useState('OFF'); // Indicador de estado bandera
 
   useEffect(() => {
-    setTablero(generarTablero());
+    contadorRef.current = contador;
+  }, [contador]);
+
+  const cambiarModo = () => {
+    setBandera(!bandera);
+    setEstadoBandera(estadoBandera === 'OFF' ? 'ON' : 'OFF');
+  };
+
+  useEffect(() => {
+    const socket = io('http://192.168.1.10:3000'); // IP del backend (puede cambiar en otras redes)
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Conectado con ID:', socket.id);
+      setJugador(socket.id); // Guardar ID del jugador
+    });
+
+    socket.on('estadoTablero', tableroRecibido => {
+      setTablero(tableroRecibido); // Recibir estado del tablero
+    });
+
+    socket.on('actualizarMov', ({ puntos }) => {
+      setContador(puntos); // Actualizar cantidad de movimientos
+    });
+
+    socket.on('perdiste', () => {
+      setFrasePerdedor('Explotaste una mina, perdiste!');
+    });
+
+    socket.on('perdio', ({ perdedor }) => {
+      setFrasePerdedor(`El perdedor es: ${perdedor}`);
+    });
+
+    socket.on('puntajes', jugadores => {
+      setJugadores(jugadores); // Mostrar puntajes
+      setModalVisible(true);
+    });
+
+    return () => {
+      socket.disconnect(); // Desconectar cuando se desmonta el componente
+    };
   }, []);
 
-  // Descubrir celda y expandir si no hay minas alrededor
-  const descubrirCelda = (i, j) => {
-    if (!tablero[i] || !tablero[i][j] || tablero[i][j].descubierta) return;
+  const manejarClick = ({ x, y }) => {
+    socketRef.current?.emit('clickCelda', { x, y, bandera });
+  };
 
-    const nuevo = tablero.map(fila => fila.map(c => ({ ...c })));
-    const stack = [[i, j]];
+  const elegirNivel = ({ x, y }) => {
+    socketRef.current?.emit('tamanoTablero', { x, y });
+    setTabPersonalizado(false);
+    setNivelVisible(false);
+    setFilas('');
+    setColumnas('');
+  };
 
-    while (stack.length > 0) {
-      const [x, y] = stack.pop();
-      if (!nuevo[x][y].descubierta) {
-        nuevo[x][y].descubierta = true;
+  const personalizado = () => {
+    setNivelVisible(false);
+    setTabPersonalizado(true);
+  };
 
-        if (nuevo[x][y].minasAlrededor === 0 && !nuevo[x][y].mina) {
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              const nx = x + dx;
-              const ny = y + dy;
-              if (
-                nx >= 0 &&
-                nx < filas &&
-                ny >= 0 &&
-                ny < columnas &&
-                !nuevo[nx][ny].descubierta
-              ) {
-                stack.push([nx, ny]);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    setTablero(nuevo);
+  const volverMenu = () => {
+    setModalVisible(false);
+    setFrasePerdedor('');
+    setNivelVisible(true);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.titulo}>Buscaminas HJ</Text>
+      <Text style={styles.titulo}>Puntos: {contador}</Text>
+      <Text style={styles.titulo}>Bienvenido: {jugador}</Text>
+      <TouchableOpacity style={styles.cambiarModo} onPress={cambiarModo}>
+        <Text>Bandera 🚩:{estadoBandera}</Text>
+      </TouchableOpacity>
       <View style={styles.tablero}>
         {tablero.map((fila, i) => (
           <View key={i} style={styles.fila}>
@@ -113,20 +114,120 @@ export default function App() {
                   styles.celda,
                   celda.descubierta && styles.descubierta,
                   celda.mina && celda.descubierta && styles.mina,
+                  celda.bandera && styles.bandera,
                 ]}
-                onPress={() => descubrirCelda(i, j)}
+                onPress={() => manejarClick({ x: i, y: j })}
               >
                 <Text style={styles.texto}>
-                  {celda.descubierta
-                    ? celda.mina
-                      ? '💣'
-                      : celda.minasAlrededor || ''
-                    : ''}
+                  {celda.bandera
+                    ? '🚩'
+                    : celda.descubierta
+                      ? celda.mina
+                        ? '💣'
+                        : celda.minasAlrededor || ''
+                      : ''}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         ))}
+
+        {/* Modal para elegir nivel */}
+        <Modal
+          visible={nivelVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setNivelVisible(true)}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalView}>
+              <Text>Selecciona un nivel</Text>
+              <View style={styles.containerBotones}>
+                <TouchableOpacity
+                  style={styles.botones}
+                  onPress={() => elegirNivel({ x: 4, y: 4 })}
+                >
+                  <Text style={styles.textoBotones}>Fácil</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.botones}
+                  onPress={() => elegirNivel({ x: 8, y: 8 })}
+                >
+                  <Text style={styles.textoBotones}>Dificil</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.botones} onPress={() => personalizado()}>
+                  <Text style={styles.textoBotones}>Personalizado</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal mostrar puntuacion final del juego*/}
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalView}>
+              <Text>{frasePerdedor}</Text>
+              <Text style={styles.titulo}>Puntajes:</Text>
+              {jugadores.map((jugador, index) => (
+                <Text key={index}>
+                  {' '}
+                  {jugador.id}: {jugador.puntos}
+                </Text>
+              ))}
+              <View style={styles.containerBotones}>
+                <TouchableOpacity style={styles.botones} onPress={volverMenu}>
+                  <Text style={styles.textoBotones}>Volver al menú</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal para configurar nivel personalizado */}
+        <Modal
+          visible={tabPersonalizado}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setTabPersonalizado(true)}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalView}>
+              <Text>Personaliza tu tablero</Text>
+              <View style={styles.containerBotones}>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  placeholder="Columnas"
+                  value={columnas}
+                  onChangeText={setColumnas}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  placeholder="Filas"
+                  value={filas}
+                  onChangeText={setFilas}
+                />
+
+                <TouchableOpacity
+                  style={styles.botones}
+                  onPress={() => elegirNivel({ x: parseFloat(columnas), y: parseFloat(filas) })}
+                >
+                  <Text style={styles.textoBotones}>Aceptar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -143,10 +244,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   tablero: {
     alignItems: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginVertical: 8,
+    borderRadius: 5,
+    backgroundColor: '#D9D9D9',
   },
   fila: {
     flexDirection: 'row',
@@ -154,7 +263,7 @@ const styles = StyleSheet.create({
   celda: {
     width: 40,
     height: 40,
-    backgroundColor: '#444',
+    backgroundColor: '#FA8072',
     borderWidth: 1,
     borderColor: '#222',
     justifyContent: 'center',
@@ -169,5 +278,50 @@ const styles = StyleSheet.create({
   texto: {
     fontWeight: 'bold',
     color: '#fff',
+  },
+  bandera: {
+    backgroundColor: 'pink',
+  },
+  cambiarModo: {
+    padding: 10,
+    margin: 10,
+    borderRadius: 10,
+    backgroundColor: '#bbb',
+    borderWidth: 1,
+  },
+  containerBotones: {
+    marginTop: 0,
+    marginBottom: 5,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  botones: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: '#21239A',
+    width: 206,
+    height: 40,
+    marginTop: 30,
+  },
+  textoBotones: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
+    elevation: 5,
   },
 });
