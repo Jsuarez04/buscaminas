@@ -119,7 +119,7 @@ export default function App() {
       <View>
         <Image
           source={require('./assets/logo-wobg.png')}
-          style={{ width: 200, height: 122, padding: 0 }}
+          style={{ width: 200, height: 122, padding: 0, elevation: 10 }}
         />
       </View>
       {/* <Text style={styles.titulo}>Puntos: {contador}</Text> */}
@@ -294,14 +294,14 @@ const styles = StyleSheet.create({
     margin: 3,
   },
   descubierta: {
-    backgroundColor: '#f3c0c0ff',
+    backgroundColor: '#fff8f8ff',
   },
   mina: {
     backgroundColor: '#ff4d4d',
   },
   texto: {
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#ff4d4d',
     fontSize: 24,
   },
   bandera: {
