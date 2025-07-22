@@ -115,7 +115,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.titulo}>Buscaminas HJ</Text>
+      <Text style={styles.titulo}>KBOOM</Text>
       <Text style={styles.titulo}>Puntos: {contador}</Text>
       <Text style={styles.titulo}>Bienvenido: {jugador}</Text>
       <TouchableOpacity style={styles.cambiarModo} onPress={cambiarModo}>
