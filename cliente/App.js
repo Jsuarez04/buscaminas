@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
@@ -73,7 +74,7 @@ export default function App() {
     });
 
     socket.on('perdiste', () => {
-      setFrasePerdedor('Explotaste una mina, perdiste!');
+      setFrasePerdedor('Explotaste una mina 💣, perdiste!');
     });
 
     socket.on('perdio', ({ perdedor }) => {
@@ -115,9 +116,14 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.titulo}>KBOOM</Text>
-      <Text style={styles.titulo}>Puntos: {contador}</Text>
-      <Text style={styles.titulo}>Bienvenido: {jugador}</Text>
+      <View>
+        <Image
+          source={require('./assets/logo-wobg.png')}
+          style={{ width: 200, height: 122, padding: 0 }}
+        />
+      </View>
+      {/* <Text style={styles.titulo}>Puntos: {contador}</Text> */}
+      <Text style={styles.titulo}>Bienvenido ID: {jugador}</Text>
       <TouchableOpacity style={styles.cambiarModo} onPress={cambiarModo}>
         <Text>Bandera 🚩:{estadoBandera}</Text>
       </TouchableOpacity>
@@ -253,15 +259,15 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#333f44',
+    backgroundColor: '#ffffffff',
     alignItems: 'center',
     paddingTop: 50,
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   tablero: {
     alignItems: 'center',
@@ -285,9 +291,10 @@ const styles = StyleSheet.create({
     borderColor: '#222',
     justifyContent: 'center',
     alignItems: 'center',
+    margin: 3,
   },
   descubierta: {
-    backgroundColor: '#bbb',
+    backgroundColor: '#f3c0c0ff',
   },
   mina: {
     backgroundColor: '#ff4d4d',
@@ -295,6 +302,7 @@ const styles = StyleSheet.create({
   texto: {
     fontWeight: 'bold',
     color: '#fff',
+    fontSize: 24,
   },
   bandera: {
     backgroundColor: 'pink',

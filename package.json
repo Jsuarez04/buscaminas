@@ -6,6 +6,7 @@
     "prettier": "^3.5.3"
   },
   "dependencies": {
-    "expo": "^53.0.20"
+    "expo": "^53.0.20",
+    "expo-font": "~13.3.2"
   }
 }
