@@ -38,6 +38,23 @@ export default function App() {
     setEstadoBandera(estadoBandera === 'OFF' ? 'ON' : 'OFF');
   };
 
+  const verificarGanador = () => {
+    if (jugador1.perdio || jugador2.perdio) return;
+
+    if (jugador1.puntos > jugador2.puntos) {
+      setGanador(jugador1.nombre);
+    } else if (jugador2.puntos > jugador1.puntos) {
+      setGanador(jugador2.nombre);
+    } else {
+      setGanador('Empate');
+    }
+
+    socket.emit('finJuego', {
+      ganador,
+      puntosJugador1: jugador1.puntos,
+      puntosJugador2: jugador2.puntos,
+    });
+  };
   useEffect(() => {
     const socket = io('http://192.168.1.10:3000'); // IP del backend (puede cambiar en otras redes)
     socketRef.current = socket;
